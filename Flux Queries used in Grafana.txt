@@ -1,0 +1,44 @@
+Flux Queries used in Grafana:
+
+1. Main query to pull the recorded data by the sensor:
+
+=> from(bucket: "airquality0")
+  |> range(start: -5d)
+  |> filter(fn: (r) => r["_measurement"] == "sensor_values")
+  |> filter(fn: (r) => r["_field"] == "value")
+  |> yield(name: "mean")
+
+2. Query for Pie Chart:
+
+=> from(bucket: "airquality0")
+  |> range(start: -7d)
+  |> filter(fn: (r) =>
+      r["_measurement"] == "sensor_values" and
+      r["_field"] == "value"
+  )
+  |> map(fn: (r) => ({
+      r with
+      category: if r._value < 450 then "Good" else if r._value < 600 then "Moderate" else "Poor"
+  }))
+  |> group(columns: ["category"])
+  |> count(column: "_value")
+  |> rename(columns: {_value: "count"})
+  |> keep(columns: ["category", "count"])
+
+3. Query for Sensor Disconnected Alert:
+
+=> from(bucket: "airquality0")
+  |> range(start: -5m)
+  |> filter(fn: (r) => r["_measurement"] == "sensor_values")
+  |> filter(fn: (r) => r["_field"] == "value")
+  |> last() 
+  |> filter(fn: (r) => r["_value"] >= 1000)
+
+4. Query for Poor Air Quality:
+
+=> from(bucket: "airquality0")
+  |> range(start: -5m)
+  |> filter(fn: (r) => r["_measurement"] == "sensor_values")
+  |> filter(fn: (r) => r["_field"] == "value")
+  |> last()
+  |> filter(fn: (r) => r["_value"] >= 450)
